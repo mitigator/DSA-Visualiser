@@ -11,59 +11,75 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.HttpSession;
+
 @RestController
 @RequestMapping("/api/array")
 @CrossOrigin(origins = "http://localhost:5173")
 public class ArrayController {
 
-    private static final int MAX_SIZE = 5;
-    private int[] array = new int[MAX_SIZE];
-    {
-        array[0] = 10;
-        array[1] = 20;
-        array[2] = 30;
+	private static final int MAX_SIZE = 5;
+
+    private static class UserArray {
+        int[] array = new int[MAX_SIZE];
+        int size = 3;
+
+        UserArray() {
+            array[0] = 10;
+            array[1] = 20;
+            array[2] = 30;
+        }
     }
-    private int size=3;
+    
+    private UserArray getUserArray(HttpSession session) {
+        UserArray userArray = (UserArray) session.getAttribute("array");
+        if (userArray == null) {
+            userArray = new UserArray();
+            session.setAttribute("array", userArray);
+        }
+        return userArray;
+    }
 
     @GetMapping
-    public int[] getArray() {
-        return Arrays.copyOf(array, size);
+    public int[] getArray(HttpSession session) {
+    	UserArray userArray = getUserArray(session);
+        return Arrays.copyOf(userArray.array, userArray.size);
     }
 
     @PostMapping("/add")
-    public ResponseEntity<?> addElement(@RequestParam int value) {
-        if (size >= MAX_SIZE) {
+    public ResponseEntity<?> addElement(@RequestParam int value, HttpSession session) {
+        UserArray userArray = getUserArray(session);
+        if (userArray.size >= MAX_SIZE) {
             return ResponseEntity
                     .badRequest()
                     .body("Cannot add into array, max size reached.");
         } else {
-            if (size >= array.length) {
-                array = Arrays.copyOf(array, array.length * 2);
+            if (userArray.size >= userArray.array.length) {
+                userArray.array = Arrays.copyOf(userArray.array, userArray.array.length * 2);
             }
-            array[size] = value;
-            size++;
-            return ResponseEntity.ok(Arrays.copyOf(array, size));
+            userArray.array[userArray.size] = value;
+            userArray.size++;
+            return ResponseEntity.ok(Arrays.copyOf(userArray.array, userArray.size));
         }
     }
 
-
     @DeleteMapping("/delete")
-    public int[] deleteElement(@RequestParam int index) {
-        if (index >= 0 && index < size) {
-            // Shift elements to the left
-            for (int i = index; i < size - 1; i++) {
-                array[i] = array[i + 1];
+    public int[] deleteElement(@RequestParam int index, HttpSession session) {
+        UserArray userArray = getUserArray(session);
+        if (index >= 0 && index < userArray.size) {
+            for (int i = index; i < userArray.size - 1; i++) {
+                userArray.array[i] = userArray.array[i + 1];
             }
-            size--;
+            userArray.size--;
         }
-        return Arrays.copyOf(array, size);
+        return Arrays.copyOf(userArray.array, userArray.size);
     }
 
     @GetMapping("/search")
-    public String search(@RequestParam int value) {
-        // Linear search through the array
-        for (int i = 0; i < size; i++) {
-            if (array[i] == value) {
+    public String search(@RequestParam int value, HttpSession session) {
+        UserArray userArray = getUserArray(session);
+        for (int i = 0; i < userArray.size; i++) {
+            if (userArray.array[i] == value) {
                 return "Found at index: " + i;
             }
         }
@@ -71,15 +87,17 @@ public class ArrayController {
     }
 
     @GetMapping("/get")
-    public String getByIndex(@RequestParam int index) {
-        if (index >= 0 && index < size) {
-            return "Element at index " + index + ": " + array[index];
+    public String getByIndex(@RequestParam int index, HttpSession session) {
+        UserArray userArray = getUserArray(session);
+        if (index >= 0 && index < userArray.size) {
+            return "Element at index " + index + ": " + userArray.array[index];
         }
         return "Invalid index";
     }
 
     @GetMapping("/info")
-    public String getArrayInfo() {
-        return "Array size: " + size + ", Capacity: " + array.length;
+    public String getArrayInfo(HttpSession session) {
+        UserArray userArray = getUserArray(session);
+        return "Array size: " + userArray.size + ", Capacity: " + userArray.array.length;
     }
 }
